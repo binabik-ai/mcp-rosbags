@@ -1,0 +1,61 @@
+# MCP ROS Bag Server Configuration
+
+# Data processing settings
+data:
+  # Time tolerance for message lookups (seconds)
+  time_tolerance: 0.1
+  
+  # Maximum messages to return in range queries
+  max_range_messages: 100
+  
+  # Maximum array length before downsampling
+  max_array_length: 100
+  
+  # Position tolerance for near_position conditions (meters)
+  position_tolerance: 1.0
+
+# Cache settings
+cache:
+  # Enable/disable caching
+  enabled: true
+  
+  # Maximum cache entries
+  max_size: 100
+  
+  # Cache entry time-to-live (seconds)
+  ttl_seconds: 300
+
+# Logging analysis settings
+logging:
+  # Default limit for log queries
+  default_limit: 100
+  
+  # Log levels to track
+  levels:
+    - DEBUG
+    - INFO
+    - WARN
+    - ERROR
+    - FATAL
+
+# Trajectory analysis settings
+trajectory:
+  # Minimum distance for trajectory downsampling (meters)
+  min_distance: 0.1
+  
+  # Angle threshold for waypoint detection (degrees)
+  waypoint_angle_threshold: 15.0
+  
+  # Minimum distance between waypoints (meters)
+  waypoint_min_distance: 0.5
+  
+  # Default segment duration for trajectory analysis (seconds)
+  default_segment_duration: 10.0
+
+# Performance settings
+performance:
+  # Maximum workers for parallel processing
+  max_workers: 4
+  
+  # Batch size for message processing
+  batch_size: 1000

@@ -1,0 +1,132 @@
+# Message Schema Definitions for Field Extraction
+# Maps message types to their important fields
+
+schemas:
+  # Navigation messages
+  nav_msgs/msg/Odometry:
+    position: pose.pose.position
+    orientation: pose.pose.orientation
+    linear_velocity: twist.twist.linear
+    angular_velocity: twist.twist.angular
+    
+  nav_msgs/msg/Path:
+    poses: poses
+    
+  # Geometry messages
+  geometry_msgs/msg/PoseStamped:
+    position: pose.position
+    orientation: pose.orientation
+    
+  geometry_msgs/msg/PoseWithCovarianceStamped:
+    position: pose.pose.position
+    orientation: pose.pose.orientation
+    covariance: pose.covariance
+    
+  geometry_msgs/msg/Pose:
+    position: position
+    orientation: orientation
+    
+  geometry_msgs/msg/PoseWithCovariance:
+    position: pose.position
+    orientation: pose.orientation
+    covariance: covariance
+    
+  geometry_msgs/msg/TwistStamped:
+    linear: twist.linear
+    angular: twist.angular
+    
+  geometry_msgs/msg/TwistWithCovarianceStamped:
+    linear: twist.twist.linear
+    angular: twist.twist.angular
+    covariance: twist.covariance
+    
+  geometry_msgs/msg/Twist:
+    linear: linear
+    angular: angular
+    
+  geometry_msgs/msg/TransformStamped:
+    translation: transform.translation
+    rotation: transform.rotation
+    parent_frame: header.frame_id
+    child_frame: child_frame_id
+    
+  # Sensor messages
+  sensor_msgs/msg/LaserScan:
+    angle_min: angle_min
+    angle_max: angle_max
+    ranges: ranges
+    intensities: intensities
+    
+  sensor_msgs/msg/PointCloud2:
+    height: height
+    width: width
+    fields: fields
+    point_step: point_step
+    row_step: row_step
+    
+  sensor_msgs/msg/Imu:
+    orientation: orientation
+    angular_velocity: angular_velocity
+    linear_acceleration: linear_acceleration
+    
+  sensor_msgs/msg/NavSatFix:
+    latitude: latitude
+    longitude: longitude
+    altitude: altitude
+    position_covariance: position_covariance
+    
+  sensor_msgs/msg/JointState:
+    name: name
+    position: position
+    velocity: velocity
+    effort: effort
+    
+  # Standard messages
+  std_msgs/msg/String:
+    data: data
+    
+  std_msgs/msg/Bool:
+    data: data
+    
+  std_msgs/msg/Float32:
+    data: data
+    
+  std_msgs/msg/Float64:
+    data: data
+    
+  std_msgs/msg/Int32:
+    data: data
+    
+  std_msgs/msg/Int64:
+    data: data
+    
+  # Diagnostic messages
+  diagnostic_msgs/msg/DiagnosticArray:
+    status: status
+    
+  diagnostic_msgs/msg/DiagnosticStatus:
+    level: level
+    name: name
+    message: message
+    hardware_id: hardware_id
+    values: values
+    
+  # TF messages
+  tf2_msgs/msg/TFMessage:
+    transforms: transforms
+    
+  # Action messages
+  actionlib_msgs/msg/GoalStatus:
+    goal_id: goal_id
+    status: status
+    text: text
+    
+  # Logging messages
+  rcl_interfaces/msg/Log:
+    stamp: stamp
+    level: level
+    name: name
+    msg: msg
+    file: file
+    function: function
+    line: line
