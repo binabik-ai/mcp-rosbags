@@ -2,19 +2,16 @@
 """
 Unified search tool for finding messages based on conditions.
 """
-
 import json
 import re
 from typing import Dict, Any, List, Optional, Callable
 import logging
 from pathlib import Path
-
 from rosbags.rosbag2 import Reader
 
 logger = logging.getLogger(__name__)
 
-
-def _check_condition(msg_data: Dict[str, Any], condition_type: str, value: Any, config: Dict[str, Any]) -> bool:
+def _check_condition(msg_data: Dict[str, Any], condition_type: str, value: Any, config: Dict[str, Any], field_path: str = None) -> bool:
     """Check if a message matches a condition."""
     if condition_type == "contains":
         # For string messages - check if value is contained
@@ -22,20 +19,36 @@ def _check_condition(msg_data: Dict[str, Any], condition_type: str, value: Any, 
         return str(value).lower() in msg_str.lower()
     
     elif condition_type == "equals":
-        # For boolean or numeric values
-        msg_value = _get_scalar_value(msg_data)
+        if field_path:
+            msg_value = _extract_field_value(msg_data, field_path)
+        else:
+            msg_value = _get_scalar_value(msg_data)
         return msg_value == value
     
     elif condition_type == "greater_than":
-        msg_value = _get_scalar_value(msg_data)
+        if field_path:
+            msg_value = _extract_field_value(msg_data, field_path)
+        else:
+            msg_value = _get_scalar_value(msg_data)
+        
         if msg_value is not None and isinstance(msg_value, (int, float)):
-            return msg_value > value
+            try:
+                return msg_value > float(value)
+            except (ValueError, TypeError):
+                return False
         return False
     
     elif condition_type == "less_than":
-        msg_value = _get_scalar_value(msg_data)
+        if field_path:
+            msg_value = _extract_field_value(msg_data, field_path)
+        else:
+            msg_value = _get_scalar_value(msg_data)
+        
         if msg_value is not None and isinstance(msg_value, (int, float)):
-            return msg_value < value
+            try:
+                return msg_value < float(value)
+            except (ValueError, TypeError):
+                return False
         return False
     
     elif condition_type == "regex":
@@ -70,13 +83,15 @@ def _check_condition(msg_data: Dict[str, Any], condition_type: str, value: Any, 
     
     return False
 
-
-def _extract_matched_value(msg_data: Dict[str, Any], condition_type: str) -> Any:
+def _extract_matched_value(msg_data: Dict[str, Any], condition_type: str, field_path: str = None) -> Any:
     """Extract the actual value that matched the condition."""
     if condition_type in ["contains", "regex"]:
         return _get_string_representation(msg_data)
     elif condition_type in ["equals", "greater_than", "less_than"]:
-        return _get_scalar_value(msg_data)
+        if field_path:
+            return _extract_field_value(msg_data, field_path)
+        else:
+            return _get_scalar_value(msg_data)
     elif condition_type == "near_position":
         return _extract_position(msg_data)
     elif condition_type == "field_equals":
@@ -84,7 +99,6 @@ def _extract_matched_value(msg_data: Dict[str, Any], condition_type: str) -> Any
     elif condition_type == "field_exists":
         return msg_data
     return None
-
 
 def _get_string_representation(msg_data: Dict[str, Any]) -> str:
     """Get string representation of message data."""
@@ -103,7 +117,6 @@ def _get_string_representation(msg_data: Dict[str, Any]) -> str:
         # Convert entire message to string
         return json.dumps(msg_data)
 
-
 def _get_scalar_value(msg_data: Dict[str, Any]) -> Any:
     """Get scalar value from message."""
     # Check common scalar fields
@@ -115,8 +128,21 @@ def _get_scalar_value(msg_data: Dict[str, Any]) -> Any:
         return msg_data["state"]
     elif "level" in msg_data:
         return msg_data["level"]
-    return None
-
+    
+    # Enhanced: Try to find any numeric value in the message
+    def find_first_numeric(data):
+        if isinstance(data, (int, float)):
+            return data
+        elif isinstance(data, dict):
+            for key, value in data.items():
+                result = find_first_numeric(value)
+                if result is not None:
+                    return result
+        elif isinstance(data, list) and len(data) > 0:
+            return find_first_numeric(data[0])
+        return None
+    
+    return find_first_numeric(msg_data)
 
 def _extract_position(msg_data: Dict[str, Any]) -> Optional[Dict[str, float]]:
     """Extract position from various message types."""
@@ -133,23 +159,19 @@ def _extract_position(msg_data: Dict[str, Any]) -> Optional[Dict[str, float]]:
             return {"x": trans.get("x", 0), "y": trans.get("y", 0), "z": trans.get("z", 0)}
     return None
 
-
 def _extract_field_value(msg_data: Dict[str, Any], field_path: str) -> Any:
-    """Extract a field value using dot notation."""
+    """Extract a field value using dot notation (e.g., 'linear.x', 'pose.position.x')."""
     try:
         parts = field_path.split('.')
         result = msg_data
-        
         for part in parts:
             if isinstance(result, dict):
                 result = result.get(part)
             else:
                 return None
-        
         return result
     except Exception:
         return None
-
 
 async def search_messages(
     topic: str,
@@ -162,6 +184,7 @@ async def search_messages(
     correlate_with_topic: Optional[str] = None,
     correlation_tolerance: float = 0.5,
     bag_path: Optional[str] = None,
+    field: Optional[str] = None,  # NEW: field path parameter
     _get_bag_files_fn: Callable = None,
     _deserialize_message_fn: Callable = None,
     config: Dict[str, Any] = None
@@ -180,8 +203,9 @@ async def search_messages(
         correlate_with_topic: Optional topic to get correlated values from
         correlation_tolerance: Time tolerance for correlation in seconds
         bag_path: Optional specific bag file or directory
+        field: Optional field path for numeric comparisons (e.g., 'linear.x')
     """
-    logger.info(f"Searching {topic} for {condition_type}={value}, direction={direction}, limit={limit}")
+    logger.info(f"Searching {topic} for {condition_type}={value}, field={field}, direction={direction}, limit={limit}")
     
     if not _get_bag_files_fn:
         return {"error": "Bag files function not provided"}
@@ -220,7 +244,6 @@ async def search_messages(
                     if conn.topic == topic:
                         _, msg_dict = _deserialize_message_fn(rawdata, conn.msgtype)
                         messages.append((time_sec, msg_dict, str(bag_path.name)))
-                    
                     elif correlate_with_topic and conn.topic == correlate_with_topic:
                         _, msg_dict = _deserialize_message_fn(rawdata, conn.msgtype)
                         correlation_messages[time_sec] = msg_dict
@@ -231,19 +254,21 @@ async def search_messages(
                 
                 # Check conditions and collect matches
                 for time_sec, msg_data, bag_name in messages:
-                    if _check_condition(msg_data, condition_type, value, config):
+                    if _check_condition(msg_data, condition_type, value, config, field):
                         match = {
                             "timestamp": time_sec,
-                            "matched_value": _extract_matched_value(msg_data, condition_type),
+                            "matched_value": _extract_matched_value(msg_data, condition_type, field),
                             "bag_file": bag_name
                         }
+                        
+                        # Add the full message data for context
+                        match["message_data"] = msg_data
                         
                         # Add correlation if requested
                         if correlate_with_topic and correlation_messages:
                             # Find closest message within tolerance
                             closest_time = None
                             min_diff = float('inf')
-                            
                             for corr_time in correlation_messages.keys():
                                 diff = abs(corr_time - time_sec)
                                 if diff <= correlation_tolerance and diff < min_diff:
@@ -259,7 +284,6 @@ async def search_messages(
                                 }
                         
                         matches.append(match)
-                        
                         if len(matches) >= limit:
                             break
                 
@@ -276,6 +300,7 @@ async def search_messages(
         "topic": topic,
         "condition_type": condition_type,
         "condition_value": value,
+        "field": field,
         "direction": direction,
         "match_count": len(matches),
         "matches": matches,
@@ -287,7 +312,6 @@ async def search_messages(
         result["correlation_tolerance"] = correlation_tolerance
     
     return result
-
 
 def register_search_tools(server, get_bag_files_fn, deserialize_message_fn, config):
     """Register search tools with the MCP server."""
@@ -301,19 +325,15 @@ def register_search_tools(server, get_bag_files_fn, deserialize_message_fn, conf
                 "type": "object",
                 "properties": {
                     "topic": {"type": "string", "description": "ROS topic to search"},
-                    "condition_type": {"type": "string", 
-                                     "enum": ["contains", "equals", "greater_than", "less_than", "regex", "near_position", "field_equals", "field_exists"],
-                                     "description": "Type of condition to match"},
-                    "value": {"description": "Value to match (format depends on condition_type)"},
-                    "direction": {"type": "string", "enum": ["forward", "backward"], 
-                                "description": "Search direction (default: forward)"},
+                    "condition_type": {"type": "string", "description": "Type of condition to match"},
+                    "value": {"type": "string", "description": "Value to match (format depends on condition_type)"},
+                    "field": {"type": "string", "description": "Optional: field path for numeric comparisons (e.g., 'linear.x', 'pose.position.x')"},
+                    "direction": {"type": "string", "description": "Search direction (default: forward)"},
                     "limit": {"type": "integer", "description": "Maximum matches to return (default: 100)"},
                     "start_time": {"type": "number", "description": "Optional: start unix timestamp"},
                     "end_time": {"type": "number", "description": "Optional: end unix timestamp"},
-                    "correlate_with_topic": {"type": "string", 
-                                            "description": "Optional: get correlated values from another topic"},
-                    "correlation_tolerance": {"type": "number", 
-                                            "description": "Time tolerance for correlation in seconds (default: 0.5)"},
+                    "correlate_with_topic": {"type": "string", "description": "Optional: get correlated values from another topic"},
+                    "correlation_tolerance": {"type": "number", "description": "Time tolerance for correlation in seconds (default: 0.5)"},
                     "bag_path": {"type": "string", "description": "Optional: specific bag file or directory"}
                 },
                 "required": ["topic", "condition_type", "value"]
@@ -334,6 +354,7 @@ def register_search_tools(server, get_bag_files_fn, deserialize_message_fn, conf
             args.get("correlate_with_topic"),
             args.get("correlation_tolerance", 0.5),
             args.get("bag_path"),
+            args.get("field"),  # NEW: pass field parameter
             get_bag_files_fn,
             deserialize_message_fn,
             config
