@@ -11,7 +11,7 @@ This MCP server provides comprehensive tools for ROS bag analysis, supporting bo
 - **Bag Management**: List, inspect, and query ROS bag files
 - **Message Querying**: Get messages by topic, timestamp, or time range
 - **Trajectory Analysis**: Extract robot paths, waypoints, and motion profiles
-- **Sensor Data**: Analyze LiDAR point clouds, images, and IMU data
+- **Sensor Data**: Analyze laserscan topics, images
 - **Transform Trees**: Query coordinate transforms and frame relationships
 - **Logging Analysis**: Search and analyze ROS log messages
 - **Visualization**: Generate plots and visual representations of data
@@ -85,25 +85,7 @@ After configuration, restart Claude Desktop and you can interact with your ROS b
 "List all ROS bags in my directory"
 "Show me the trajectory from the /odom topic"
 "Find all error messages in the logs"
-"Extract images from the /camera/image topic at timestamp 1234567890"
-```
-
-### Standalone Server
-
-Run the server directly for testing:
-
-```bash
-python src/server.py --bag-dir /path/to/rosbags --config-dir /path/to/config
-```
-
-### Example Commands
-
-```bash
-# List bags in a specific directory
-python src/server.py --bag-dir ~/robot_data/bags
-
-# Use custom configuration
-python src/server.py --config-dir ./my_config
+"Extract an image from the /camera/image topic at timestamp 1234567890 and describe what you see"
 ```
 
 ## Tools Overview
@@ -119,7 +101,7 @@ The server provides the following categories of tools:
 
 ### Analysis Tools
 - **Trajectory**: Extract robot paths, analyze motion patterns
-- **LiDAR**: Process point cloud data, detect obstacles
+- **LiDAR**: Process laserscan data, e.g., to detect obstacles
 - **Images**: Extract and process camera images
 - **Transforms**: Query coordinate transforms and frame trees
 - **Logging**: Search and analyze ROS log messages
@@ -127,7 +109,6 @@ The server provides the following categories of tools:
 
 ### Search Tools
 - Pattern matching in message data
-- Object detection and tracking
 - Correlation analysis between topics
 - Time-based data alignment
 
@@ -168,40 +149,6 @@ The server supports standard ROS message types including:
 
 - **Intelligent Caching**: Configurable caching system for frequently accessed data
 - **Schema-based Extraction**: Efficient field extraction using predefined schemas
-- **Streaming Processing**: Memory-efficient processing of large bag files
-- **Parallel Processing**: Multi-threaded analysis for improved performance
-
-## Development
-
-### Testing
-
-Test the server functionality:
-```bash
-# Test with sample data (if available)
-python src/server.py --bag-dir ./test_data
-
-# Run with debug logging
-python src/server.py --bag-dir ~/rosbags
-# Check logs in /tmp/mcp_rosbag_*.log
-```
-
-### Configuration Customization
-
-Modify `src/config/server_config.yaml` to adjust:
-- Cache settings
-- Processing limits
-- Analysis parameters
-- Performance tuning
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-Please open an issue first to discuss major changes.
 
 ## License
 
@@ -214,4 +161,4 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) fo
 
 ## Acknowledgments
 
-Built with the [Model Context Protocol](https://modelcontextprotocol.io/) and [rosbags](https://github.com/ternaris/rosbags) library.
+Built with the [Model Context Protocol](https://modelcontextprotocol.io/) and the [rosbags](https://github.com/ternaris/rosbags) library.
