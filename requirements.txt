@@ -1,3 +1,6 @@
+jinja2
+typeguard
+pillow
 mcp
 rosbags
 numpy
